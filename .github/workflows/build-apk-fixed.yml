@@ -1,0 +1,65 @@
+name: Build Ganpati Utsav APK Fixed
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract fixed project
+        run: |
+          mkdir extracted
+          unzip -o GanpatiUtsavAccounts-Fixed.zip -d extracted
+          rsync -a extracted/ ./
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Fix Java compatibility
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/build.gradle.kts")
+          text = p.read_text()
+
+          marker = ' compileSdk = 35'
+
+          addition = '''
+          
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+
+              kotlinOptions {
+                  jvmTarget = "17"
+              }'''
+
+          if "sourceCompatibility = JavaVersion.VERSION_17" not in text:
+              text = text.replace(marker, marker + addition)
+
+          p.write_text(text)
+          PY
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build APK
+        run: gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GanpatiUtsavAccounts-Fixed-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
