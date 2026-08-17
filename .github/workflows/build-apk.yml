@@ -17,6 +17,39 @@ jobs:
           unzip -o GanpatiUtsavAccounts-GitHub.zip -d extracted
           rsync -a extracted/ ./
 
+      - name: Fix Java 17 compatibility
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/build.gradle.kts")
+          text = p.read_text()
+
+          old = '''android {
+              namespace = "com.ganpati.utsav"
+              compileSdk = 35
+          '''
+
+          new = '''android {
+              namespace = "com.ganpati.utsav"
+              compileSdk = 35
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          '''
+
+          if old not in text:
+              raise SystemExit("Could not find expected android block")
+
+          p.write_text(text.replace(old, new))
+          PY
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
